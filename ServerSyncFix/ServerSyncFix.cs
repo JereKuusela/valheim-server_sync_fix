@@ -14,7 +14,7 @@ namespace ServerSyncFix;
 public class ServerSyncFix : BaseUnityPlugin {
   const string GUID = "server_sync_fix";
   const string NAME = "Server Sync Fix";
-  const string VERSION = "1.0";
+  const string VERSION = "1.1";
 
 #nullable disable
   public static ManualLogSource Log;
@@ -23,9 +23,11 @@ public class ServerSyncFix : BaseUnityPlugin {
     Log = Logger;
     new Harmony(GUID).PatchAll();
   }
-
+  private static bool Patched = false;
   [HarmonyPatch(typeof(FejdStartup), nameof(FejdStartup.Awake)), HarmonyPostfix]
   private static void DoPatch() {
+    if (Patched) return;
+    Patched = true;
     Harmony harmony = new(GUID);
     foreach (var info in Chainloader.PluginInfos.Values) {
       var assembly = info.Instance.GetType().Assembly;

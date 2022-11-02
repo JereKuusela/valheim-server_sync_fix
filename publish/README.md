@@ -5,3 +5,8 @@ This is very fragile compared to the actual Server Sync code. Use at your own ri
 Sources: [GitHub](https://github.com/JereKuusela/valheim-server_sync_fix)
 
 Donations: [Buy me a computer](https://www.buymeacoffee.com/jerekuusela)
+
+# Changelog
+
+- v1.1
+  - Fixes the fix being re-applied on disconnects.
