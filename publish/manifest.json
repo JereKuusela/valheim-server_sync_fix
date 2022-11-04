@@ -1,6 +1,6 @@
 {
   "name": "Server_Sync_Fix",
-  "version_number": "1.1.0",
+  "version_number": "1.2.0",
   "description": "Experimental tool to fix broken server syncs of old mods. Install on all clients and the server.",
   "website_url": "https://github.com/JereKuusela/valheim-server_sync_fix",
   "dependencies": [

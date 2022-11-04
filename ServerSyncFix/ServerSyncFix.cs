@@ -14,7 +14,7 @@ namespace ServerSyncFix;
 public class ServerSyncFix : BaseUnityPlugin {
   const string GUID = "server_sync_fix";
   const string NAME = "Server Sync Fix";
-  const string VERSION = "1.1";
+  const string VERSION = "1.2";
 
 #nullable disable
   public static ManualLogSource Log;
@@ -23,8 +23,21 @@ public class ServerSyncFix : BaseUnityPlugin {
     Log = Logger;
     new Harmony(GUID).PatchAll();
   }
+
+
+  [HarmonyPatch(typeof(ZNet), nameof(ZNet.Awake)), HarmonyPostfix, HarmonyPriority(Priority.Last)]
+  private static void EnsureUnpatch() {
+    Harmony harmony = new(GUID);
+    foreach (var info in Chainloader.PluginInfos.Values) {
+      var assembly = info.Instance.GetType().Assembly;
+      if (!IsOutdated(assembly)) continue;
+      Log.LogDebug($"Mod {info.Metadata.GUID} has outdated server sync.");
+      PreventReceiving(assembly, harmony);
+    }
+
+  }
   private static bool Patched = false;
-  [HarmonyPatch(typeof(FejdStartup), nameof(FejdStartup.Awake)), HarmonyPostfix]
+  [HarmonyPatch(typeof(FejdStartup), nameof(FejdStartup.Awake)), HarmonyPostfix, HarmonyPriority(Priority.Last)]
   private static void DoPatch() {
     if (Patched) return;
     Patched = true;
@@ -38,16 +51,20 @@ public class ServerSyncFix : BaseUnityPlugin {
       var syncType = ConfigSync(assembly);
       var syncs = (IEnumerable)Field(assembly, "configSyncs");
       foreach (var oldSync in syncs) {
-        var newSync = CopySync(assembly, oldSync);
-        CopyForceLock(assembly, oldSync, newSync);
-        CopySettings(assembly, oldSync, newSync);
-        CopyValues(assembly, oldSync, newSync);
-        CopyLockConfig(assembly, oldSync, newSync);
-        Log.LogWarning($"Updated server sync for {newSync.Name}.");
+        UpdateSync(assembly, oldSync);
       }
       ClearConfigSyncs(assembly);
       ClearVersionChecks(assembly);
     }
+  }
+  private static ServerSync.ConfigSync UpdateSync(Assembly assembly, object oldSync) {
+    var newSync = CopySync(assembly, oldSync);
+    CopyForceLock(assembly, oldSync, newSync);
+    CopySettings(assembly, oldSync, newSync);
+    CopyValues(assembly, oldSync, newSync);
+    CopyLockConfig(assembly, oldSync, newSync);
+    Log.LogWarning($"Updated server sync for {newSync.Name}.");
+    return newSync;
   }
   private static bool IsOutdated(Assembly assembly) {
     var type = SubClass(assembly, "SendConfigsAfterLogin+BufferingSocket");
@@ -75,7 +92,9 @@ public class ServerSyncFix : BaseUnityPlugin {
     var prefix = PatchProcessor.GetPatchInfo(AccessTools.DeclaredMethod(classType, name)).Prefixes.FirstOrDefault(p => p.PatchMethod.DeclaringType == type);
     var postfix = PatchProcessor.GetPatchInfo(AccessTools.DeclaredMethod(classType, name)).Postfixes.FirstOrDefault(p => p.PatchMethod.DeclaringType == type);
     if (prefix != null) harmony.Unpatch(AccessTools.DeclaredMethod(classType, name), prefix.PatchMethod);
+    if (prefix != null) Log.LogDebug("Unpatched prefix of " + name);
     if (postfix != null) harmony.Unpatch(AccessTools.DeclaredMethod(classType, name), postfix.PatchMethod);
+    if (postfix != null) Log.LogDebug("Unpatched postfix of " + name);
   }
 
   private static void PreventReceiving(Assembly assembly, Harmony harmony) {
